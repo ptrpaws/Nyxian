@@ -1,0 +1,51 @@
+name: Build iOS App
+
+on:
+  push:
+    branches:
+      - '**'
+  pull_request:
+    branches:
+      - '**'
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build and Package
+    runs-on: macos-26
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build and Package IPA
+        run: |
+          set -e
+          
+          # Run setup script to download dependencies
+          chmod +x setup.sh
+          ./setup.sh
+
+          # Build the project
+          xcodebuild -project Nyxian.xcodeproj \
+                     -scheme Nyxian \
+                     -configuration Debug \
+                     -destination 'generic/platform=iOS' \
+                     -archivePath build/Nyxian.xcarchive \
+                     archive \
+                     CODE_SIGN_IDENTITY="" \
+                     CODE_SIGNING_REQUIRED=NO \
+                     CODE_SIGNING_ALLOWED=NO
+
+          # Package into IPA
+          rm -rf Payload
+          mkdir Payload
+          cp -r build/Nyxian.xcarchive/Products/Applications/Nyxian.app Payload/
+          zip -r Nyxian.ipa Payload
+          rm -rf Payload
+
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Nyxian.ipa
+          path: Nyxian.ipa
